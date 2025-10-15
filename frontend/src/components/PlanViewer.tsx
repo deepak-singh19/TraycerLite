@@ -40,16 +40,16 @@ export function PlanViewer({
       const isEnhanced = phaseStatus === 'enhanced' || phaseStatus === 'enhancement_failed';
       const isVisible = visiblePhases.has(index);
       
-      // If phase is enhanced but not yet visible, show it after 1 second
+      
       if (isEnhanced && !isVisible) {
         setTimeout(() => {
           setVisiblePhases(prev => new Set([...prev, index]));
-        }, 1000); // 1 second delay
+        }, 1000); 
       }
     });
   }, [phaseStatuses, plan.phases, visiblePhases]);
 
-  // console.log(plan);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -73,13 +73,13 @@ export function PlanViewer({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Plan Overview */}
+       
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Implementation Plan</h2>
               
-              {/* Task Display */}
+              
               <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
