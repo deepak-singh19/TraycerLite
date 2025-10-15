@@ -65,9 +65,7 @@ graph TD
 
 ## 🚀 **Live Demo**
 
-- **Frontend**: [https://traycerlite.vercel.app](https://traycerlite.vercel.app)
-- **Backend API**: [https://traycerlite-production.up.railway.app](https://traycerlite-production.up.railway.app)
-- **Health Check**: [https://traycerlite-production.up.railway.app/health](https://traycerlite-production.up.railway.app/health)
+- **Live**: [https://traycerlite.vercel.app](https://traycerlite.vercel.app)
 
 ## ✨ **Key Features**
 
@@ -613,16 +611,6 @@ We welcome contributions! Here's how to get started:
 - **Caching Strategies**: SHA256-based content caching
 - **Cost Optimization**: Using efficient AI models for production
 
-### **Architecture Patterns**
-- **Microservices**: Separate frontend and backend
-- **API-First Design**: RESTful API architecture
-- **Progressive Web Apps**: Modern React patterns
-- **Container Deployment**: Docker and cloud deployment
-- **Environment Configuration**: Multi-environment setup
-
-## 📄 **License**
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 **Acknowledgments**
 
@@ -638,8 +626,3 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 If you find this project useful, please consider giving it a star! ⭐
 
----
-
-**Built with ❤️ for the AI development community**
-
-*Transforming how developers plan and execute software projects with the power of AI.*
