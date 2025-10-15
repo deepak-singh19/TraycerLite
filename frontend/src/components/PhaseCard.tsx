@@ -9,6 +9,7 @@ interface PhaseCardProps {
   phaseNumber: number;
   onExecute: () => void;
   executionResult?: { stepId: string; success: boolean; output: string };
+  isBasePlan?: boolean;
 }
 
 export function PhaseCard({
@@ -18,6 +19,7 @@ export function PhaseCard({
   phaseNumber,
   onExecute,
   executionResult,
+  isBasePlan = false,
 }: PhaseCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -105,6 +107,12 @@ export function PhaseCard({
                   Phase {phaseNumber}
                 </span>
                 <h3 className="text-lg font-semibold text-gray-900">{phase.name}</h3>
+                {isBasePlan && phaseStatus === 'enhancing' && (
+                  <div className="ml-3 flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-sm text-blue-600 font-medium">Enhancing...</span>
+                  </div>
+                )}
               </div>
             </button>
           </div>
@@ -161,6 +169,19 @@ export function PhaseCard({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="border-t bg-gray-50 p-6">
+          {/* Base Plan Enhancement Notice */}
+          {isBasePlan && phaseStatus === 'enhancing' && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                <div>
+                  <h4 className="text-sm font-medium text-blue-800">AI Enhancement in Progress</h4>
+                  <p className="text-sm text-blue-600">This phase is being enhanced with detailed architectural guidance...</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Enhanced Reasoning */}
           {enhancedPhase && enhancedPhase !== 'failed' && enhancedPhase.reasoning && (
             <div className="mb-6">

@@ -118,15 +118,18 @@ export function PlanViewer({
             const phaseStatus = phaseStatuses?.[index] || 'pending';
             const executionResult = getExecutionResult(phase.id);
             
-            // Only show phases that are completed, enhanced, or currently being enhanced
+            // Show phase if it's enhanced, failed, or we're showing base plan with enhancement in progress
             const shouldShowPhase = phaseStatus === 'enhanced' || 
-                                  phaseStatus === 'enhancing' || 
                                   phaseStatus === 'enhancement_failed' ||
-                                  enhancedPhase !== undefined;
+                                  (phaseStatus === 'enhancing' && enhancedPhase !== undefined) ||
+                                  (phaseStatus === 'pending' && index === 0); // Show first phase immediately
             
             if (!shouldShowPhase) {
               return null;
             }
+            
+            // Always use the base phase for the phase prop, enhancedPhase for enhancement data
+            const isBasePlan = !enhancedPhase || enhancedPhase === 'failed';
             
             return (
               <div key={phase.id} className="animate-fade-in">
@@ -137,6 +140,7 @@ export function PlanViewer({
                   phaseNumber={index + 1}
                   onExecute={() => onExecutePhase(phase)}
                   executionResult={executionResult}
+                  isBasePlan={isBasePlan}
                 />
               </div>
             );
@@ -147,17 +151,17 @@ export function PlanViewer({
             const phaseStatus = phaseStatuses?.[index] || 'pending';
             const enhancedPhase = enhancedPhases?.[index];
             
-            // Show loading card for phases that haven't been enhanced yet
-            const shouldShowLoading = phaseStatus === 'pending' && 
+            // Show loading card for phases that are being enhanced but not yet shown
+            const shouldShowLoading = phaseStatus === 'enhancing' && 
                                     enhancedPhase === undefined &&
-                                    index < progress.current + 1; // Show next phase being processed
+                                    index > 0; // Don't show loading for first phase (it shows immediately)
             
             if (!shouldShowLoading) {
               return null;
             }
             
             return (
-              <div key={`loading-${phase.id}`} className="border rounded-lg p-6 bg-gray-50">
+              <div key={`loading-${phase.id}`} className="border rounded-lg p-6 bg-gray-50 animate-fade-in">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
                     <div className="bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded mr-3">
@@ -171,7 +175,7 @@ export function PlanViewer({
                   </div>
                 </div>
                 <div className="text-gray-600">
-                  <p>AI is enhancing this phase with detailed instructions and reasoning...</p>
+                  <p>AI is enhancing this phase with detailed architectural guidance and implementation details...</p>
                 </div>
               </div>
             );
