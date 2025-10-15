@@ -1,7 +1,24 @@
 import axios from 'axios';
 import { PlanResponse, PlanStatusResponse, ExecuteRequest, ExecuteResponse, TaskAnalysis } from '../types';
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || '/api';
+// Determine API base URL based on environment
+const getApiBaseUrl = () => {
+  // Check if we have an explicit environment variable
+  const envUrl = (import.meta as any).env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // In production (Vercel), use the Railway backend URL
+  if ((import.meta as any).env.PROD) {
+    return 'https://minitraycer.up.railway.app/api';
+  }
+  
+  // In development, use the proxy
+  return '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

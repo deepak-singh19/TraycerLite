@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Settings, Sparkles, Zap, Play } from 'lucide-react';
 import { TechnologyRecommendations } from './TechnologyRecommendations';
 import { TechnologyComparison } from '../types';
+import { planApi } from '../services/api';
 
 interface TaskInputProps {
   onSubmit: (task: string) => void;
@@ -48,30 +49,16 @@ export function TaskInput({ onSubmit, isLoading, onOpenSettings, hasApiKey }: Ta
     console.log('Analyzing task:', taskText);
     setIsAnalyzing(true);
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ task: taskText }),
+      const analysis = await planApi.analyzeTask(taskText);
+      console.log('Analysis result:', analysis);
+      setTechnologyRecommendations({
+        database: analysis.databaseRecommendation,
+        backend: analysis.backendRecommendation,
+        frontend: analysis.frontendRecommendation,
       });
-
-      console.log('Analysis response status:', response.status);
-      
-      if (response.ok) {
-        const analysis = await response.json();
-        console.log('Analysis result:', analysis);
-        setTechnologyRecommendations({
-          database: analysis.databaseRecommendation,
-          backend: analysis.backendRecommendation,
-          frontend: analysis.frontendRecommendation,
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('Analysis API error:', response.status, errorText);
-      }
     } catch (error) {
       console.error('Error analyzing task:', error);
+      setTechnologyRecommendations(null);
     } finally {
       setIsAnalyzing(false);
     }
