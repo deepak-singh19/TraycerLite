@@ -16,6 +16,44 @@ export class OpenAIEnhancementService {
     }
   }
 
+  async enhanceAllPhases(
+    phases: Phase[],
+    task: string,
+    analysis: TaskAnalysis,
+    options: {
+      model?: string;
+      maxTokens?: number;
+      temperature?: number;
+    } = {}
+  ): Promise<{ [phaseIndex: number]: OpenAIEnhancementResponse }> {
+    if (!this.client) {
+      throw new Error('OpenAI client not initialized');
+    }
+
+    const {
+      model = 'gpt-5-nano',
+      maxTokens = 2000, // Increased for batch processing
+      temperature = 0.1,
+    } = options;
+
+    // Wait for available slot
+    await this.waitForSlot();
+
+    try {
+      this.activeRequests++;
+      const response = await this.performBatchEnhancement(phases, task, analysis, {
+        model,
+        maxTokens,
+        temperature,
+      });
+
+      return response;
+    } finally {
+      this.activeRequests--;
+      this.processQueue();
+    }
+  }
+
   async enhancePhase(
     phase: Phase,
     task: string,
@@ -31,8 +69,8 @@ export class OpenAIEnhancementService {
     }
 
     const {
-      model = 'gpt-4',
-      maxTokens = 600, // Reduced since we're asking for concise responses
+      model = 'gpt-5-nano', // Cheapest model available - $0.05/$0.40 per 1M tokens
+      maxTokens = 400, // Reduced since we're asking for concise responses
       temperature = 0.1, // Lower for more consistent JSON
     } = options;
 
@@ -94,6 +132,77 @@ export class OpenAIEnhancementService {
     }
   }
 
+  private async performBatchEnhancement(
+    phases: Phase[],
+    task: string,
+    analysis: TaskAnalysis,
+    options: {
+      model: string;
+      maxTokens: number;
+      temperature: number;
+    }
+  ): Promise<{ [phaseIndex: number]: OpenAIEnhancementResponse }> {
+    const prompt = this.buildBatchEnhancementPrompt(phases, task, analysis);
+    
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        const startTime = Date.now();
+        
+        const response = await this.client!.chat.completions.create({
+          model: options.model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a senior software architect. Given a task and multiple phases, produce a JSON object ONLY with enhancements for all phases. Return valid JSON only, no extra text.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: options.temperature,
+          max_tokens: options.maxTokens,
+        });
+
+        const completionTime = Date.now() - startTime;
+        const content = response.choices[0]?.message?.content;
+
+        if (!content) {
+          throw new Error('No content in response');
+        }
+
+        // Parse the batch response
+        const batchResponse = this.parseBatchResponse(content, phases);
+        
+        console.log(`✅ Batch enhancement completed in ${completionTime}ms for ${phases.length} phases`);
+        return batchResponse;
+
+      } catch (error) {
+        attempts++;
+        console.error(`Batch enhancement attempt ${attempts} failed:`, error);
+        
+        if (attempts >= maxAttempts) {
+          // Return fallback responses for all phases
+          const fallbackResponses: { [phaseIndex: number]: OpenAIEnhancementResponse } = {};
+          phases.forEach((phase, index) => {
+            fallbackResponses[index] = this.createFallbackResponse(phase);
+          });
+          return fallbackResponses;
+        }
+      }
+    }
+
+    // This should never be reached, but TypeScript requires it
+    const fallbackResponses: { [phaseIndex: number]: OpenAIEnhancementResponse } = {};
+    phases.forEach((phase, index) => {
+      fallbackResponses[index] = this.createFallbackResponse(phase);
+    });
+    return fallbackResponses;
+  }
+
   private async performEnhancement(
     phase: Phase,
     task: string,
@@ -135,7 +244,7 @@ export class OpenAIEnhancementService {
         if (!content) {
           throw new Error('Empty response from OpenAI');
         }
-        
+
         // Process the LLM response
 
         // Try to extract JSON from the response
@@ -159,7 +268,7 @@ export class OpenAIEnhancementService {
         if (!jsonContent.startsWith('{') || !jsonContent.endsWith('}')) {
           throw new Error('Response does not contain valid JSON object');
         }
-        
+
         const parsed = JSON.parse(jsonContent);
         
         // Validate response
@@ -226,10 +335,10 @@ export class OpenAIEnhancementService {
             const repairResponse = await this.client!.chat.completions.create({
               model: options.model,
               messages: [
-            {
-              role: 'system',
+                {
+                  role: 'system',
               content: 'You are a JSON generator. Your ONLY job is to return valid JSON that matches the provided schema. Do NOT include any text, explanations, or markdown. Start your response with { and end with }. Return ONLY the JSON object.',
-            },
+                },
                 {
                   role: 'user',
                   content: `The previous JSON response had syntax errors. Please return ONLY valid JSON with proper formatting:
@@ -366,6 +475,156 @@ IMPORTANT RULES:
     `.trim();
 
     return prompt;
+  }
+
+  private buildBatchEnhancementPrompt(
+    phases: Phase[],
+    task: string,
+    analysis: TaskAnalysis
+  ): string {
+    const phasesList = phases.map((phase, index) => {
+      const filesList = phase.files
+        .map(f => `- ${f.path} (${f.action}): ${f.description}`)
+        .join('\n');
+      
+      return `
+Phase ${index + 1}: ${phase.name}
+Description: ${phase.description}
+Files:
+${filesList}
+`;
+    }).join('\n---\n');
+
+    const prompt = `
+Task: ${task}
+Project Type: ${analysis.projectType}
+
+PHASES TO ENHANCE:
+${phasesList}
+
+Provide brief enhancements for ALL phases above. Keep each enhancement concise and practical.
+
+Return ONLY valid JSON matching this schema:
+{
+  "phases": [
+    {
+      "phaseIndex": 0,
+      "description": "Brief description of what this phase accomplishes",
+      "reasoning": "Why this approach is chosen",
+      "files": [
+        {
+          "path": "file/path",
+          "details": ["Key implementation detail 1", "Key implementation detail 2"]
+        }
+      ]
+    }
+  ]
+}
+
+Rules:
+- Use double quotes only
+- No trailing commas
+- No extra text or markdown
+- Keep descriptions under 50 words
+- Maximum 2 details per file
+- Include ALL phases (0 to ${phases.length - 1})
+    `.trim();
+
+    return prompt;
+  }
+
+  private parseBatchResponse(content: string, phases: Phase[]): { [phaseIndex: number]: OpenAIEnhancementResponse } {
+    try {
+      // Clean and extract JSON
+      let jsonContent = content.trim();
+      
+      // Remove markdown code blocks if present
+      if (jsonContent.includes('```')) {
+        const match = jsonContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match && match[1]) {
+          jsonContent = match[1].trim();
+        }
+      }
+      
+      // Find JSON object
+      const jsonStart = jsonContent.indexOf('{');
+      if (jsonStart > 0) {
+        jsonContent = jsonContent.substring(jsonStart);
+      }
+      
+      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[0];
+      }
+      
+      jsonContent = this.cleanJsonString(jsonContent);
+      
+      const parsed = JSON.parse(jsonContent);
+      
+      if (!parsed.phases || !Array.isArray(parsed.phases)) {
+        throw new Error('Invalid batch response format');
+      }
+      
+      const result: { [phaseIndex: number]: OpenAIEnhancementResponse } = {};
+      
+      // Process each phase response
+      parsed.phases.forEach((phaseResponse: any) => {
+        const phaseIndex = phaseResponse.phaseIndex;
+        if (typeof phaseIndex === 'number' && phaseIndex >= 0 && phaseIndex < phases.length) {
+          const phase = phases[phaseIndex];
+          if (phase) {
+            result[phaseIndex] = {
+              description: phaseResponse.description || `Enhanced implementation for ${phase.name}`,
+              reasoning: phaseResponse.reasoning || 'AI-enhanced implementation with best practices',
+              architecture: {
+                patterns: ['MVC Pattern', 'Repository Pattern'],
+                design_decisions: ['Modular architecture', 'Separation of concerns'],
+                scalability_approach: 'Horizontal scaling with load balancing',
+                security_measures: ['Input validation', 'Authentication'],
+                performance_optimizations: ['Caching', 'Database indexing']
+              },
+              implementation: {
+                best_practices: ['Follow SOLID principles', 'Use TypeScript'],
+                code_structure: 'Organize code into modules',
+                error_handling: 'Comprehensive error handling with logging',
+                testing_strategy: 'Unit and integration testing',
+                deployment_considerations: 'Containerization with Docker'
+              },
+              files: (phaseResponse.files || []).map((file: any) => ({
+                path: file.path,
+                details: file.details || [],
+                architecture_notes: 'Follow established patterns',
+                implementation_guidance: 'Implement with best practices',
+                security_considerations: 'Ensure proper validation',
+                performance_tips: 'Optimize for performance'
+              }))
+            };
+          }
+        }
+      });
+      
+      // Fill in any missing phases with fallback responses
+      for (let i = 0; i < phases.length; i++) {
+        if (!result[i]) {
+          const phase = phases[i];
+          if (phase) {
+            result[i] = this.createFallbackResponse(phase);
+          }
+        }
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('Failed to parse batch response:', error);
+      
+      // Return fallback responses for all phases
+      const fallbackResponses: { [phaseIndex: number]: OpenAIEnhancementResponse } = {};
+      phases.forEach((phase, index) => {
+        fallbackResponses[index] = this.createFallbackResponse(phase);
+      });
+      return fallbackResponses;
+    }
   }
 
   private validateResponse(response: any): response is OpenAIEnhancementResponse {

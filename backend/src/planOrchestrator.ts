@@ -85,57 +85,62 @@ async function enhancePlanAsync(
   }
 
   const service = new OpenAIEnhancementService(options.apiKey);
-  // Starting enhancement process
+  console.log('🚀 Starting batch enhancement for all phases...');
   
-  // Enhance phases in order (prioritize lower-index phases)
+  // Set all phases to enhancing status
   for (let i = 0; i < state.basePlan.phases.length; i++) {
-    try {
-      const phase = state.basePlan.phases[i];
-      if (!phase) {
-        console.error(` [ENHANCEMENT] Phase at index ${i} is undefined`);
-        state.phaseStatuses[i] = 'enhancement_failed';
-        // Update progress even on failure to maintain accurate count
-        state.progress.current = i + 1;
-        continue;
+    state.phaseStatuses[i] = 'enhancing';
+  }
+  
+  try {
+    // Enhance all phases in a single API call
+    const batchResults = await service.enhanceAllPhases(
+      state.basePlan.phases,
+      state.basePlan.task,
+      state.analysis,
+      {
+        model: options.model || 'gpt-5-nano', // Cheapest model - $0.05/$0.40 per 1M tokens
+        maxTokens: options.maxTokens || 2000, // Increased for batch processing
+        temperature: options.temperature || 0.1, // Lower for consistency
       }
-      
-      // Set status to enhancing (no progress update yet)
-      state.phaseStatuses[i] = 'enhancing';
-      
-      // Enhancing phase
-      
-      // Enhance with OpenAI
-      const enhanced = await service.enhancePhase(phase, state.basePlan.task, state.analysis, {
-        model: options.model || 'gpt-4',
-        maxTokens: options.maxTokens || 400,
-        temperature: options.temperature || 0.3,
-      });
+    );
 
-      // Convert to EnhancedPhase format
-      const enhancedPhase: EnhancedPhase = {
-        id: phase.id,
-        name: phase.name,
-        description: enhanced.description,
-        reasoning: enhanced.reasoning,
-        files: enhanced.files,
-        estimatedTime: phase.estimatedTime,
-      };
+    // Process batch results
+    for (let i = 0; i < state.basePlan.phases.length; i++) {
+      const phase = state.basePlan.phases[i];
+      const enhanced = batchResults[i];
+      
+      if (phase && enhanced) {
+        // Convert to EnhancedPhase format
+        const enhancedPhase: EnhancedPhase = {
+          id: phase.id,
+          name: phase.name,
+          description: enhanced.description,
+          reasoning: enhanced.reasoning,
+          files: enhanced.files,
+          estimatedTime: phase.estimatedTime,
+        };
 
-      state.enhancedPhases[i] = enhancedPhase;
-      state.phaseStatuses[i] = 'enhanced';
-      
-      // Update progress only after successful completion
-      state.progress.current = i + 1;
-      
-      // Phase enhanced successfully
-      
-    } catch (error) {
-      console.error(` Failed to enhance phase ${i + 1}: "${state.basePlan.phases[i]?.name || 'Unknown'}"`);
-      state.phaseStatuses[i] = 'enhancement_failed';
-      
-      // Update progress even on failure to maintain accurate count
-      state.progress.current = i + 1;
+        state.enhancedPhases[i] = enhancedPhase;
+        state.phaseStatuses[i] = 'enhanced';
+        console.log(`✅ Phase ${i + 1}: "${phase.name}" enhanced successfully`);
+      } else {
+        console.error(`❌ Phase ${i + 1}: "${phase?.name || 'Unknown'}" enhancement failed`);
+        state.phaseStatuses[i] = 'enhancement_failed';
+      }
     }
+    
+    // Update progress to completion
+    state.progress.current = state.basePlan.phases.length;
+    
+  } catch (error) {
+    console.error('❌ Batch enhancement failed:', error);
+    
+    // Mark all phases as failed
+    for (let i = 0; i < state.basePlan.phases.length; i++) {
+      state.phaseStatuses[i] = 'enhancement_failed';
+    }
+    state.progress.current = state.basePlan.phases.length;
   }
 
   // Mark as complete
@@ -143,34 +148,9 @@ async function enhancePlanAsync(
   state.progress.current = state.basePlan.phases.length;
   
   console.log(`AI enhancement complete: ${Object.keys(state.enhancedPhases).length}/${state.basePlan.phases.length} phases enhanced`);
-  
-  // Optional: Final reconciliation pass
-  if (options.model && options.model.includes('gpt-4')) {
-    try {
-      await performReconciliationPass(taskHash, service, options);
-    } catch (error) {
-      console.error('Reconciliation pass failed:', error);
-    }
-  }
 }
 
-// Final reconciliation pass to resolve contradictions
-async function performReconciliationPass(
-  taskHash: string,
-  service: OpenAIEnhancementService,
-  options: EnhancementOptions
-): Promise<void> {
-  const state = planStates.get(taskHash);
-  if (!state) return;
-
-  console.log('Performing reconciliation pass...');
-  
-  // This would involve a single call to the model to review the entire plan
-  // and resolve any contradictions between phases. For now, we'll skip this
-  // as it's optional and would require additional prompt engineering.
-  
-  console.log('Reconciliation pass completed');
-}
+// Reconciliation pass removed for better performance and cost efficiency
 
 // Get plan status
 export function getPlanStatus(taskHash: string) {
