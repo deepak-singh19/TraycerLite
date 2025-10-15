@@ -1,0 +1,42 @@
+# Development files
+src/
+*.ts
+!dist/
+
+# Test files
+__tests__/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Development dependencies
+node_modules/
+.vitest/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment files (Railway will handle these)
+.env
+.env.local
+.env.development
+.env.test
+
+# Build artifacts (keep dist/)
+*.tsbuildinfo
+
+# Documentation
+README.md
+docs/

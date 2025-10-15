@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs_18", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci --include=dev"]
+cmds = ["cd backend && npm ci --include=dev"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["cd backend && npm run build"]
 
 [variables]
 NODE_ENV = "production"
