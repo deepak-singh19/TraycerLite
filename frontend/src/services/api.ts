@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { PlanResponse, PlanStatusResponse, ExecuteRequest, ExecuteResponse } from '../types';
+import { PlanResponse, PlanStatusResponse, ExecuteRequest, ExecuteResponse, TaskAnalysis } from '../types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,6 +18,12 @@ api.interceptors.request.use((config) => {
 });
 
 export const planApi = {
+  // Analyze a task and get technology recommendations
+  analyzeTask: async (task: string): Promise<TaskAnalysis> => {
+    const response = await api.post<TaskAnalysis>('/analyze', { task });
+    return response.data;
+  },
+
   // Generate a new plan
   generatePlan: async (task: string): Promise<PlanResponse> => {
     const response = await api.post<PlanResponse>('/plan', { task });

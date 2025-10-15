@@ -6,7 +6,7 @@ export function usePlanStatus(taskHash: string | null, enabled: boolean = true) 
   const [status, setStatus] = useState<PlanStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!taskHash || !enabled) {
