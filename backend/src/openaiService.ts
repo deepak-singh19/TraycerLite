@@ -44,7 +44,7 @@ export class OpenAIEnhancementService {
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      console.log(`💾 [CACHE] Cache hit for phase: ${phase.name}`);
+      // Cache hit - returning cached response
       return cached.response;
     }
 
@@ -136,11 +136,7 @@ export class OpenAIEnhancementService {
           throw new Error('Empty response from OpenAI');
         }
         
-        // Log the raw LLM response for debugging
-        console.log(`🔍 [DEBUG] Raw LLM response for phase "${phase.name}":`);
-        console.log(`🔍 [DEBUG] Response length: ${content.length} characters`);
-        console.log(`🔍 [DEBUG] Response preview: ${content.substring(0, 200)}...`);
-        console.log(`🔍 [DEBUG] Full response:`, content);
+        // Process the LLM response
 
         // Try to extract JSON from the response
         let jsonContent = content.trim();
@@ -156,22 +152,15 @@ export class OpenAIEnhancementService {
         
         // Check if JSON is complete (ends with })
         if (!jsonContent.endsWith('}')) {
-          console.log(`🔍 [DEBUG] JSON appears to be truncated - doesn't end with }`);
           throw new Error('JSON response appears to be truncated');
         }
         
-        // Log the extracted JSON for debugging
-        console.log(`🔍 [DEBUG] Extracted JSON content:`, jsonContent);
-        
         // Validate that we have valid JSON structure
         if (!jsonContent.startsWith('{') || !jsonContent.endsWith('}')) {
-          console.log(`🔍 [DEBUG] JSON validation failed - doesn't start/end with braces`);
           throw new Error('Response does not contain valid JSON object');
         }
         
-        console.log(`🔍 [DEBUG] Attempting to parse JSON...`);
         const parsed = JSON.parse(jsonContent);
-        console.log(`🔍 [DEBUG] JSON parsing successful!`);
         
         // Validate response
         if (this.validateResponse(parsed)) {
@@ -184,11 +173,8 @@ export class OpenAIEnhancementService {
         console.error(`Enhancement attempt ${attempts} failed:`, error);
 
         if (attempts >= maxAttempts) {
-          console.log(`⚠️ All ${maxAttempts} attempts failed for phase: ${phase.name}`);
-          
-          // Try one final attempt with simple schema
+          // All attempts failed - trying simple schema as fallback
           if (attempts === maxAttempts) {
-            console.log(`🔄 Trying simple schema for phase: ${phase.name}`);
             try {
               const simplePrompt = this.buildEnhancementPrompt(phase, task, analysis, true);
               const simpleResponse = await this.client!.chat.completions.create({
@@ -222,12 +208,11 @@ export class OpenAIEnhancementService {
                 
                 if (simpleJson.startsWith('{') && simpleJson.endsWith('}')) {
                   const simpleParsed = JSON.parse(simpleJson);
-                  console.log(`✅ Simple schema succeeded for phase: ${phase.name}`);
                   return this.convertSimpleToFullResponse(simpleParsed, phase);
                 }
               }
             } catch (simpleError) {
-              console.log(`❌ Simple schema also failed for phase: ${phase.name}`);
+              // Simple schema also failed - will use fallback response
             }
           }
           

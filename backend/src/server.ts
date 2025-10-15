@@ -33,9 +33,9 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Traycer Lite Backend running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📋 API docs:`);
+  console.log(` Traycer Lite Backend running on port ${PORT}`);
+  console.log(` Health check: http://localhost:${PORT}/health`);
+  console.log(` API docs:`);
   console.log(`   POST /api/test-connection - Test OpenAI API key`);
   console.log(`   POST /api/analyze - Analyze task and get technology recommendations`);
   console.log(`   POST /api/plan - Generate a new plan`);

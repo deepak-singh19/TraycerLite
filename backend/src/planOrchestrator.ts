@@ -62,12 +62,12 @@ export async function generateCompletePlan(
 
   // Step 3: Start background enhancement if API key is available
   if (options.apiKey) {
-    console.log(`🚀 Starting AI enhancement...`);
+    console.log(` Starting AI enhancement...`);
     enhancePlanAsync(taskHash, options).catch(error => {
-      console.error('❌ AI enhancement failed:', error);
+      console.error(' AI enhancement failed:', error);
     });
   } else {
-    console.log(`⚠️ No API key provided, skipping AI enhancement`);
+    console.log(`No API key provided, skipping AI enhancement`);
   }
 
   return { plan: basePlan, taskHash };
@@ -92,7 +92,7 @@ async function enhancePlanAsync(
     try {
       const phase = state.basePlan.phases[i];
       if (!phase) {
-        console.error(`❌ [ENHANCEMENT] Phase at index ${i} is undefined`);
+        console.error(` [ENHANCEMENT] Phase at index ${i} is undefined`);
         state.phaseStatuses[i] = 'enhancement_failed';
         // Update progress even on failure to maintain accurate count
         state.progress.current = i + 1;
@@ -130,7 +130,7 @@ async function enhancePlanAsync(
       // Phase enhanced successfully
       
     } catch (error) {
-      console.error(`❌ Failed to enhance phase ${i + 1}: "${state.basePlan.phases[i]?.name || 'Unknown'}"`);
+      console.error(` Failed to enhance phase ${i + 1}: "${state.basePlan.phases[i]?.name || 'Unknown'}"`);
       state.phaseStatuses[i] = 'enhancement_failed';
       
       // Update progress even on failure to maintain accurate count
@@ -142,7 +142,7 @@ async function enhancePlanAsync(
   state.isComplete = true;
   state.progress.current = state.basePlan.phases.length;
   
-  console.log(`✅ AI enhancement complete: ${Object.keys(state.enhancedPhases).length}/${state.basePlan.phases.length} phases enhanced`);
+  console.log(`AI enhancement complete: ${Object.keys(state.enhancedPhases).length}/${state.basePlan.phases.length} phases enhanced`);
   
   // Optional: Final reconciliation pass
   if (options.model && options.model.includes('gpt-4')) {
