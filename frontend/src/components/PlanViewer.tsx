@@ -78,6 +78,22 @@ export function PlanViewer({
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Implementation Plan</h2>
+              
+              {/* Task Display */}
+              <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-sm">📋</span>
+                    </div>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800 mb-1">Building Plan For:</h3>
+                    <p className="text-blue-900 font-medium">{plan.task}</p>
+                  </div>
+                </div>
+              </div>
+              
               <p className="text-gray-600">{plan.overview}</p>
               
               {/* Progressive Enhancement Status */}
