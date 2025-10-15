@@ -1,4 +1,5 @@
 import { ArrowLeft, Copy, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Plan, Phase, EnhancedPhase } from '../types';
 import { PhaseCard } from './PhaseCard';
 import { EnhancementBadge } from './EnhancementBadge';
@@ -22,6 +23,8 @@ export function PlanViewer({
   onExecutePhase,
   executionLogs,
 }: PlanViewerProps) {
+  const [visiblePhases, setVisiblePhases] = useState<Set<number>>(new Set([0])); // Show first phase immediately
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -29,6 +32,22 @@ export function PlanViewer({
   const getExecutionResult = (phaseId: string) => {
     return executionLogs.find(log => log.stepId === phaseId);
   };
+
+  // Staggered phase appearance effect - show each phase 1 second after it's enhanced
+  useEffect(() => {
+    plan.phases.forEach((_, index) => {
+      const phaseStatus = phaseStatuses[index];
+      const isEnhanced = phaseStatus === 'enhanced' || phaseStatus === 'enhancement_failed';
+      const isVisible = visiblePhases.has(index);
+      
+      // If phase is enhanced but not yet visible, show it after 1 second
+      if (isEnhanced && !isVisible) {
+        setTimeout(() => {
+          setVisiblePhases(prev => new Set([...prev, index]));
+        }, 1000); // 1 second delay
+      }
+    });
+  }, [phaseStatuses, plan.phases, visiblePhases]);
 
   // console.log(plan);
 
@@ -111,18 +130,20 @@ export function PlanViewer({
           )}
         </div>
 
-        {/* Phases - Progressive Loading */}
+        {/* Phases - Staggered Appearance */}
         <div className="space-y-6">
           {plan.phases.map((phase, index) => {
             const enhancedPhase = enhancedPhases?.[index];
             const phaseStatus = phaseStatuses?.[index] || 'pending';
             const executionResult = getExecutionResult(phase.id);
+            const isVisible = visiblePhases.has(index);
             
-            // Show phase if it's enhanced, failed, or we're showing base plan with enhancement in progress
-            const shouldShowPhase = phaseStatus === 'enhanced' || 
-                                  phaseStatus === 'enhancement_failed' ||
-                                  (phaseStatus === 'enhancing' && enhancedPhase !== undefined) ||
-                                  (phaseStatus === 'pending' && index === 0); // Show first phase immediately
+            // Show phase if it's visible and has been enhanced
+            const shouldShowPhase = isVisible && (
+              phaseStatus === 'enhanced' || 
+              phaseStatus === 'enhancement_failed' ||
+              (phaseStatus === 'enhancing' && enhancedPhase !== undefined)
+            );
             
             if (!shouldShowPhase) {
               return null;
@@ -146,15 +167,15 @@ export function PlanViewer({
             );
           })}
           
-          {/* Show loading indicator for phases not yet enhanced */}
+          {/* Show loading indicator for phases not yet visible */}
           {plan.phases.map((phase, index) => {
             const phaseStatus = phaseStatuses?.[index] || 'pending';
-            const enhancedPhase = enhancedPhases?.[index];
+            const isVisible = visiblePhases.has(index);
             
-            // Show loading card for phases that are being enhanced but not yet shown
-            const shouldShowLoading = phaseStatus === 'enhancing' && 
-                                    enhancedPhase === undefined &&
-                                    index > 0; // Don't show loading for first phase (it shows immediately)
+            // Show loading card for phases that are enhanced but not yet visible
+            const shouldShowLoading = (phaseStatus === 'enhanced' || phaseStatus === 'enhancement_failed') && 
+                                    !isVisible &&
+                                    index > 0; // Don't show loading for first phase
             
             if (!shouldShowLoading) {
               return null;
@@ -171,11 +192,11 @@ export function PlanViewer({
                   </div>
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
-                    <span className="text-sm font-medium text-blue-600">Enhancing...</span>
+                    <span className="text-sm font-medium text-blue-600">Ready to show...</span>
                   </div>
                 </div>
                 <div className="text-gray-600">
-                  <p>AI is enhancing this phase with detailed architectural guidance and implementation details...</p>
+                  <p>Phase enhanced successfully. Will appear in a moment...</p>
                 </div>
               </div>
             );
